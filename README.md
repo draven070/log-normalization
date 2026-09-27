@@ -736,6 +736,6 @@ The final goal is to evolve the project into a lightweight security monitoring p
 
 ---
 
-## License
+📜 License
 
 This project is intended for educational, research, and authorized defensive-security purposes.
