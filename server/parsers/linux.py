@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 
-from schema.event import (
+from normalization.schema import (
     NormalizedLog,
     Source,
     Event,
@@ -14,131 +14,92 @@ from schema.event import (
 class LinuxAuthParser:
 
     FAILED_LOGIN = re.compile(
-        r"(?P<month>\w{3})\s+"
-        r"(?P<day>\d+)\s+"
-        r"(?P<time>\d+:\d+:\d+)\s+"
-        r"(?P<host>\S+)\s+"
-        r"sshd\[(?P<pid>\d+)\]:\s+"
-        r"Failed password for "
-        r"(?:invalid user )?"
-        r"(?P<user>\S+)\s+"
-        r"from\s+"
-        r"(?P<ip>[\d.]+)\s+"
-        r"port\s+"
-        r"(?P<port>\d+)"
+        r"Failed password for (?:invalid user )?"
+        r"(?P<user>\S+) from (?P<ip>\S+) "
+        r"port (?P<port>\d+)"
     )
 
     SUCCESS_LOGIN = re.compile(
-        r"(?P<month>\w{3})\s+"
-        r"(?P<day>\d+)\s+"
-        r"(?P<time>\d+:\d+:\d+)\s+"
-        r"(?P<host>\S+)\s+"
-        r"sshd\[(?P<pid>\d+)\]:\s+"
-        r"Accepted password for "
-        r"(?P<user>\S+)\s+"
-        r"from\s+"
-        r"(?P<ip>[\d.]+)\s+"
-        r"port\s+"
-        r"(?P<port>\d+)"
+        r"Accepted (?:password|publickey) for "
+        r"(?P<user>\S+) from (?P<ip>\S+) "
+        r"port (?P<port>\d+)"
     )
 
-    def can_parse(self, log: str) -> bool:
+    def can_parse(self, log):
         return "sshd" in log
 
-    def parse(self, log: str):
+    def parse(self, log):
 
-        match = self.FAILED_LOGIN.search(log)
+        failed = self.FAILED_LOGIN.search(log)
 
-        if match:
-            data = match.groupdict()
-
-            return self.create_event(
-                data,
+        if failed:
+            return self._create_event(
                 log,
+                failed,
                 status="failed"
             )
 
-        match = self.SUCCESS_LOGIN.search(log)
+        success = self.SUCCESS_LOGIN.search(log)
 
-        if match:
-            data = match.groupdict()
-
-            return self.create_event(
-                data,
+        if success:
+            return self._create_event(
                 log,
+                success,
                 status="success"
             )
 
         return None
 
-    def create_event(
-        self,
-        data,
-        raw_log,
-        status
-    ):
+    def _create_event(self, log, match, status):
 
-        timestamp = self.build_timestamp(
-            data["month"],
-            data["day"],
-            data["time"]
-        )
+        current_year = datetime.now().year
+
+        try:
+            timestamp_text = log[:15]
+
+            timestamp = datetime.strptime(
+                f"{current_year} {timestamp_text}",
+                "%Y %b %d %H:%M:%S"
+            ).isoformat()
+
+        except ValueError:
+            timestamp = datetime.now().isoformat()
+
+        username = match.group("user")
+        source_ip = match.group("ip")
+        source_port = int(match.group("port"))
+
+        action = "login"
 
         return NormalizedLog(
-
             timestamp=timestamp,
 
             source=Source(
-                type="linux",
-                host=data["host"]
+                type="linux"
             ),
 
             event=Event(
                 type="authentication",
-                action="login",
+                action=action,
                 status=status,
                 category="authentication"
             ),
 
             user=User(
-                name=data["user"]
+                name=username
             ),
 
             network=Network(
-                src_ip=data["ip"],
-                src_port=int(data["port"]),
+                src_ip=source_ip,
+                src_port=source_port,
                 protocol="ssh"
             ),
 
             process=Process(
-                name="sshd",
-                pid=int(data["pid"])
+                name="sshd"
             ),
 
-            message=raw_log,
+            message=log.strip(),
 
-           
+            raw_log=log.strip()
         )
-
-    def build_timestamp(
-        self,
-        month,
-        day,
-        time
-    ):
-
-        year = datetime.now().year
-
-        date_string = (
-            f"{year} "
-            f"{month} "
-            f"{day} "
-            f"{time}"
-        )
-
-        dt = datetime.strptime(
-            date_string,
-            "%Y %b %d %H:%M:%S"
-        )
-
-        return dt.isoformat()

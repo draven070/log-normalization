@@ -1,171 +1,106 @@
-import json
-import os
-import sys
+from flask import Flask, request, jsonify
 
-from pipelines.normalizer import LogNormalizer
+from normalization.normalizer import LogNormalizer
+from storage.json_store import JSONEventStore
+from config import (
+    SERVER_HOST,
+    SERVER_PORT,
+    API_KEY,
+    OUTPUT_FILE,
+)
 
 
-def process_linux(
-    input_file,
-    output_file
-):
+app = Flask(__name__)
 
-    normalizer = LogNormalizer()
+normalizer = LogNormalizer()
 
-    results = []
+store = JSONEventStore(
+    OUTPUT_FILE
+)
 
-    with open(
-        input_file,
-        "r",
-        encoding="utf-8"
-    ) as file:
 
-        for line in file:
+@app.route("/api/health", methods=["GET"])
+def health():
 
-            line = line.strip()
+    return jsonify({
+        "status": "online",
+        "service": "cross-platform-log-normalizer"
+    })
 
-            if not line:
-                continue
 
-            result = normalizer.normalize_linux(
-                line
-            )
+@app.route("/api/events", methods=["POST"])
+def receive_event():
 
-            if result:
-
-                results.append(
-                    result.model_dump()
-                )
-
-    save_results(
-        results,
-        output_file
+    provided_key = request.headers.get(
+        "X-API-Key"
     )
 
+    if provided_key != API_KEY:
 
-def process_windows(
-    input_file,
-    output_file
-):
+        return jsonify({
+            "error": "Unauthorized"
+        }), 401
 
-    normalizer = LogNormalizer()
+    data = request.get_json(
+        silent=True
+    )
 
-    results = []
+    if not data:
 
-    with open(
-        input_file,
-        "r",
-        encoding="utf-8"
-    ) as file:
+        return jsonify({
+            "error": "Invalid JSON"
+        }), 400
 
-        events = json.load(file)
+    source = data.get("source")
 
-    for event in events:
+    try:
 
-        result = normalizer.normalize_windows(
-            event
+        normalized = normalizer.normalize(
+            source,
+            data.get("message")
+            if source == "linux"
+            else data
         )
 
-        if result:
+        if normalized is None:
 
-            results.append(
-                result.model_dump()
-            )
+            return jsonify({
+                "status": "ignored"
+            }), 200
 
-    save_results(
-        results,
-        output_file
-    )
+        normalized_dict = normalized.model_dump()
 
-
-def save_results(
-    results,
-    output_file
-):
-
-    directory = os.path.dirname(
-        output_file
-    )
-
-    if directory:
-
-        os.makedirs(
-            directory,
-            exist_ok=True
-        )
-
-    with open(
-        output_file,
-        "w",
-        encoding="utf-8"
-    ) as file:
-
-        json.dump(
-            results,
-            file,
-            indent=4
-        )
-
-    print(
-        f"[+] Normalized events: "
-        f"{len(results)}"
-    )
-
-    print(
-        f"[+] Output: {output_file}"
-    )
-
-
-def main():
-
-    if len(sys.argv) != 4:
-
-        print(
-            "Usage:"
+        store.save(
+            normalized_dict
         )
 
         print(
-            "python app.py linux "
-            "<input> <output>"
+            f"[+] {source.upper()} | "
+            f"{normalized.event.type} | "
+            f"{normalized.event.action} | "
+            f"{normalized.event.status}"
         )
+
+        return jsonify({
+            "status": "success",
+            "event": normalized_dict
+        }), 201
+
+    except Exception as error:
 
         print(
-            "python app.py windows "
-            "<input> <output>"
+            f"[ERROR] {error}"
         )
 
-        sys.exit(1)
-
-    log_type = sys.argv[1]
-
-    input_file = sys.argv[2]
-
-    output_file = sys.argv[3]
-
-    if log_type == "linux":
-
-        process_linux(
-            input_file,
-            output_file
-        )
-
-    elif log_type == "windows":
-
-        process_windows(
-            input_file,
-            output_file
-        )
-
-    else:
-
-        print(
-            "[-] Unknown log type"
-        )
-
-        print(
-            "Use: linux or windows"
-        )
+        return jsonify({
+            "error": str(error)
+        }), 500
 
 
 if __name__ == "__main__":
-    main()
+
+    app.run(
+        host=SERVER_HOST,
+        port=SERVER_PORT,
+        debug=False
+    )
