@@ -1,0 +1,3 @@
+Sep 27 08:15:32 server01 sshd[1234]: Failed password for admin from 10.10.10.25 port 52144 ssh2
+Sep 27 08:16:12 server01 sshd[1235]: Failed password for root from 10.10.10.26 port 52321 ssh2
+Sep 27 08:17:45 server01 sshd[1236]: Accepted password for bijay from 10.10.10.20 port 52001 ssh2

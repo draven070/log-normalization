@@ -1,0 +1,101 @@
+[
+    {
+        "timestamp": "2026-09-27T08:15:32",
+        "source": {
+            "type": "linux",
+            "host": "server01",
+            "ip": null
+        },
+        "event": {
+            "id": null,
+            "type": "authentication",
+            "action": "login",
+            "status": "failed",
+            "category": "authentication"
+        },
+        "user": {
+            "name": "admin",
+            "domain": null
+        },
+        "network": {
+            "src_ip": "10.10.10.25",
+            "src_port": 52144,
+            "dst_ip": null,
+            "dst_port": null,
+            "protocol": "ssh"
+        },
+        "process": {
+            "name": "sshd",
+            "pid": 1234,
+            "command_line": null
+        },
+        "message": "Sep 27 08:15:32 server01 sshd[1234]: Failed password for admin from 10.10.10.25 port 52144 ssh2",
+        "raw_log": "Sep 27 08:15:32 server01 sshd[1234]: Failed password for admin from 10.10.10.25 port 52144 ssh2"
+    },
+    {
+        "timestamp": "2026-09-27T08:16:12",
+        "source": {
+            "type": "linux",
+            "host": "server01",
+            "ip": null
+        },
+        "event": {
+            "id": null,
+            "type": "authentication",
+            "action": "login",
+            "status": "failed",
+            "category": "authentication"
+        },
+        "user": {
+            "name": "root",
+            "domain": null
+        },
+        "network": {
+            "src_ip": "10.10.10.26",
+            "src_port": 52321,
+            "dst_ip": null,
+            "dst_port": null,
+            "protocol": "ssh"
+        },
+        "process": {
+            "name": "sshd",
+            "pid": 1235,
+            "command_line": null
+        },
+        "message": "Sep 27 08:16:12 server01 sshd[1235]: Failed password for root from 10.10.10.26 port 52321 ssh2",
+        "raw_log": "Sep 27 08:16:12 server01 sshd[1235]: Failed password for root from 10.10.10.26 port 52321 ssh2"
+    },
+    {
+        "timestamp": "2026-09-27T08:17:45",
+        "source": {
+            "type": "linux",
+            "host": "server01",
+            "ip": null
+        },
+        "event": {
+            "id": null,
+            "type": "authentication",
+            "action": "login",
+            "status": "success",
+            "category": "authentication"
+        },
+        "user": {
+            "name": "bijay",
+            "domain": null
+        },
+        "network": {
+            "src_ip": "10.10.10.20",
+            "src_port": 52001,
+            "dst_ip": null,
+            "dst_port": null,
+            "protocol": "ssh"
+        },
+        "process": {
+            "name": "sshd",
+            "pid": 1236,
+            "command_line": null
+        },
+        "message": "Sep 27 08:17:45 server01 sshd[1236]: Accepted password for bijay from 10.10.10.20 port 52001 ssh2",
+        "raw_log": "Sep 27 08:17:45 server01 sshd[1236]: Accepted password for bijay from 10.10.10.20 port 52001 ssh2"
+    }
+]
