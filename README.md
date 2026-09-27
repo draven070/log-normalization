@@ -1,741 +1,437 @@
 # Cross-Platform Security Log Normalizer
 
-A Python-based security log normalization system that converts **Linux authentication logs** and **Windows Security Event Logs** into a unified JSON schema.
-
-The project is designed as the foundation of a lightweight **SIEM and security monitoring system**, where logs from different operating systems can be processed using a common structure before detection and analysis.
+A lightweight, cross-platform security log normalization platform that collects **Linux and Windows security events in real time**, converts them into a common JSON schema, and provides a foundation for future detection and SIEM capabilities.
 
 ---
 
-## Overview
-
-Security logs from different operating systems use different formats.
-
-For example, Linux SSH authentication may generate:
+## Architecture
 
 ```text
-Sep 27 08:15:32 server01 sshd[1234]: Failed password for admin from 10.10.10.25 port 52144 ssh2
-```
-
-While Windows records authentication failures using structured Security Events such as:
-
-```text
-Event ID: 4625
-Account Name: administrator
-Source Network Address: 10.10.10.25
-```
-
-Although both represent an authentication failure, their formats and field names are different.
-
-This project converts both into a **common security event schema**.
-
-```text
-                    ┌───────────────────┐
-                    │    Linux Logs     │
-                    │    auth.log       │
-                    └─────────┬─────────┘
-                              │
-                              ▼
-                       Linux Parser
-                              │
-                              │
-                              ▼
-                    ┌───────────────────┐
-                    │  Common Event     │
-                    │      Schema       │
-                    └───────────────────┘
-                              ▲
-                              │
-                       Windows Parser
-                              ▲
-                              │
-                    ┌─────────┴─────────┐
-                    │ Windows Security  │
-                    │      Events       │
-                    └───────────────────┘
+Linux / Windows
+      │
+      ▼
+Real-Time Agents
+      │
+      │ HTTP / JSON
+      ▼
+   Flask API
+      │
+      ▼
+Authentication
+      │
+      ▼
+Platform Parsers
+      │
+      ▼
+Common Event Schema
+      │
+      ▼
+Normalized JSON Storage
+      │
+      ▼
+Future Detection / SIEM
 ```
 
 ---
 
-## Features
+## Current Work
 
-* Linux SSH authentication log parsing
-* Windows Security Event normalization
-* Common JSON event schema
-* Event ID mapping
-* User and domain extraction
-* Source IP and port extraction
-* Process information support
-* Authentication success/failure classification
-* Original raw log preservation
-* Pydantic-based schema validation
-* Modular parser architecture
-* Extensible detection-engine architecture
+The current implementation focuses on **real-time collection, parsing, normalization, and storage**.
 
----
+### Implemented
 
-## Supported Log Sources
+* Linux real-time log collection from `/var/log/auth.log`
+* SSH authentication monitoring
+* Windows Security Event Log collection
+* Windows Event XML parsing
+* Central Flask REST API
+* API-key authentication
+* Linux and Windows platform-specific parsers
+* Common normalized event schema
+* JSON-based event storage
+* Modular agent/server architecture
 
-| Source                             | Status      |
-| ---------------------------------- | ----------- |
-| Linux `auth.log`                   | ✅ Supported |
-| Windows Security Events            | ✅ Supported |
-| Windows Event XML                  | 🔄 Planned  |
-| Windows `.evtx`                    | 🔄 Planned  |
-| Real-time Windows Event Collection | 🔄 Planned  |
-| Detection Engine                   | 🔄 Planned  |
-| Security Dashboard                 | 🔄 Planned  |
+### Supported Windows Events
 
----
+| Event ID | Activity                |
+| -------: | ----------------------- |
+|     4624 | Successful logon        |
+|     4625 | Failed logon            |
+|     4634 | Logoff                  |
+|     4648 | Explicit credential use |
+|     4672 | Special privileges      |
+|     4688 | Process creation        |
+|     4720 | User account created    |
+|     4726 | User account deleted    |
+|     4740 | Account locked out      |
 
-# Architecture
+### Common Event Format
 
-```text
-                  RAW LOG SOURCES
-                         │
-             ┌───────────┴───────────┐
-             │                       │
-             ▼                       ▼
-        Linux auth.log       Windows Security Events
-             │                       │
-             ▼                       ▼
-       Linux Parser           Windows Parser
-             │                       │
-             └───────────┬───────────┘
-                         │
-                         ▼
-                  Common Schema
-                         │
-                         ▼
-                 Normalized JSON
-                         │
-                         ▼
-                Detection Engine
-                         │
-                         ▼
-                      Alerts
-                         │
-                         ▼
-                    Dashboard
-```
-
----
-
-# Project Structure
-
-```text
-log-normalizer/
-│
-├── app.py
-├── requirements.txt
-│
-├── schema/
-│   ├── __init__.py
-│   └── event.py
-│
-├── parsers/
-│   ├── __init__.py
-│   ├── linux.py
-│   └── windows.py
-│
-├── pipeline/
-│   ├── __init__.py
-│   └── normalizer.py
-│
-├── samples/
-│   ├── auth.log
-│   └── windows_events.json
-│
-└── output/
-    └── normalized.json
-```
-
----
-
-# Common Event Schema
-
-All supported logs are converted into a common structure.
-
-Example:
+Events from different operating systems are converted into a consistent structure:
 
 ```json
 {
-    "timestamp": "2026-09-27T08:15:32+05:45",
-
-    "source": {
-        "type": "windows",
-        "host": "WIN-SERVER01",
-        "ip": null
-    },
-
-    "event": {
-        "id": 4625,
-        "type": "authentication",
-        "action": "logon",
-        "status": "failed",
-        "category": "authentication"
-    },
-
-    "user": {
-        "name": "administrator",
-        "domain": "CORP"
-    },
-
-    "network": {
-        "src_ip": "10.10.10.25",
-        "src_port": 52144,
-        "dst_ip": null,
-        "dst_port": null,
-        "protocol": "TCP"
-    },
-
-    "process": {
-        "name": null,
-        "pid": null,
-        "command_line": null
-    },
-
-    "message": "An account failed to log on.",
-
-    "raw_log": "..."
+  "timestamp": "...",
+  "source": {
+    "type": "linux",
+    "host": "...",
+    "ip": "..."
+  },
+  "event": {
+    "type": "authentication",
+    "action": "login",
+    "status": "failed",
+    "category": "authentication"
+  },
+  "user": {
+    "name": "admin"
+  },
+  "network": {
+    "src_ip": "192.168.1.10",
+    "src_port": 54321,
+    "protocol": "ssh"
+  },
+  "process": {
+    "name": "sshd"
+  },
+  "message": "...",
+  "raw_log": "..."
 }
 ```
 
-### Main fields
+---
 
-| Field                  | Description               |
-| ---------------------- | ------------------------- |
-| `timestamp`            | Time of the event         |
-| `source.type`          | Log source                |
-| `source.host`          | Hostname                  |
-| `event.id`             | Original Windows Event ID |
-| `event.type`           | General event type        |
-| `event.action`         | Action performed          |
-| `event.status`         | Success or failure        |
-| `event.category`       | Security category         |
-| `user.name`            | Username                  |
-| `user.domain`          | Domain                    |
-| `network.src_ip`       | Source IP                 |
-| `network.src_port`     | Source port               |
-| `network.dst_ip`       | Destination IP            |
-| `network.dst_port`     | Destination port          |
-| `network.protocol`     | Network protocol          |
-| `process.name`         | Process name              |
-| `process.pid`          | Process ID                |
-| `process.command_line` | Command line              |
-| `message`              | Event description         |
-| `raw_log`              | Original event            |
+## Project Structure
+
+```text
+cross-platform-log-normalizer/
+│
+├── server/
+│   ├── app.py
+│   ├── config.py
+│   ├── requirements.txt
+│   ├── parsers/
+│   │   ├── linux.py
+│   │   └── windows.py
+│   ├── normalization/
+│   │   ├── schema.py
+│   │   └── normalizer.py
+│   └── storage/
+│       └── json_store.py
+│
+├── agents/
+│   ├── linux/
+│   │   ├── collector.py
+│   │   ├── config.py
+│   │   └── requirements.txt
+│   └── windows/
+│       ├── collector.py
+│       ├── config.py
+│       └── requirements.txt
+│
+├── output/
+│   └── normalized_events.json
+│
+├── samples/
+│   └── auth.log
+│
+└── README.md
+```
 
 ---
 
-# Linux Log Normalization
+## Installation
 
-The Linux parser currently focuses on SSH authentication events from:
+### 1. Clone the Repository
+
+```bash
+git clone <your-repository-url>
+cd cross-platform-log-normalizer
+```
+
+### 2. Install Server Dependencies
+
+```bash
+cd server
+pip install -r requirements.txt
+```
+
+### 3. Start the Central Server
+
+```bash
+python app.py
+```
+
+The API will be available at:
+
+```text
+http://127.0.0.1:5000
+```
+
+Health check:
+
+```text
+GET /api/health
+```
+
+---
+
+## Linux Agent
+
+Install dependencies:
+
+```bash
+cd agents/linux
+pip install -r requirements.txt
+```
+
+Configure the server:
+
+```bash
+export NORMALIZER_SERVER="http://127.0.0.1:5000"
+export NORMALIZER_API_KEY="change-this-key"
+```
+
+Start the collector:
+
+```bash
+python collector.py
+```
+
+The agent monitors:
 
 ```text
 /var/log/auth.log
 ```
 
-Example:
-
-```text
-Sep 27 08:15:32 server01 sshd[1234]: Failed password for admin from 10.10.10.25 port 52144 ssh2
-```
-
-The parser extracts:
-
-```text
-Username
-Source IP
-Source port
-Hostname
-Process
-Process ID
-Timestamp
-Authentication status
-```
-
-It then converts the event into the common schema.
-
-### Example normalized Linux event
-
-```json
-{
-    "timestamp": "2026-09-27T08:15:32",
-
-    "source": {
-        "type": "linux",
-        "host": "server01"
-    },
-
-    "event": {
-        "type": "authentication",
-        "action": "login",
-        "status": "failed",
-        "category": "authentication"
-    },
-
-    "user": {
-        "name": "admin"
-    },
-
-    "network": {
-        "src_ip": "10.10.10.25",
-        "src_port": 52144,
-        "protocol": "ssh"
-    },
-
-    "process": {
-        "name": "sshd",
-        "pid": 1234
-    }
-}
-```
+and forwards new SSH authentication events to the central server.
 
 ---
 
-# Windows Event Normalization
+## Windows Agent
 
-The Windows parser maps important Security Event IDs to common event categories.
-
-| Event ID | Event                       |
-| -------: | --------------------------- |
-|   `4624` | Successful logon            |
-|   `4625` | Failed logon                |
-|   `4634` | Logoff                      |
-|   `4648` | Explicit credential logon   |
-|   `4672` | Special privileges assigned |
-|   `4688` | Process creation            |
-|   `4720` | User account created        |
-|   `4726` | User account deleted        |
-|   `4740` | User account locked out     |
-
-For example:
-
-```text
-4625
-```
-
-is mapped to:
-
-```json
-{
-    "type": "authentication",
-    "action": "logon",
-    "status": "failed",
-    "category": "authentication"
-}
-```
-
-While:
-
-```text
-4688
-```
-
-is mapped to:
-
-```json
-{
-    "type": "process",
-    "action": "process_creation",
-    "category": "process"
-}
-```
-
----
-
-# Installation
-
-## 1. Clone the repository
-
-```bash
-git clone https://github.com/<your-username>/log-normalizer.git
-cd log-normalizer
-```
-
-Replace `<your-username>` with your GitHub username.
-
-## 2. Create a virtual environment
-
-### Linux
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### Windows
+Install dependencies:
 
 ```powershell
-python -m venv venv
-venv\Scripts\activate
-```
-
-## 3. Install dependencies
-
-```bash
+cd agents\windows
 pip install -r requirements.txt
 ```
 
----
-
-# Requirements
-
-```text
-Python 3.10+
-Pydantic 2.x
-```
-
----
-
-# Usage
-
-The application supports two input types:
-
-```text
-linux
-windows
-```
-
-## Linux
-
-```bash
-python app.py linux samples/auth.log output/normalized.json
-```
-
-Example output:
-
-```text
-[+] Normalized events: 3
-[+] Output: output/normalized.json
-```
-
----
-
-## Windows
-
-```bash
-python app.py windows samples/windows_events.json output/normalized.json
-```
-
-Example output:
-
-```text
-[+] Normalized events: 5
-[+] Output: output/normalized.json
-```
-
----
-
-# Windows Event Collection
-
-During the initial development stage, Windows events can be exported using PowerShell.
-
-Example:
+Configure the server:
 
 ```powershell
-Get-WinEvent -LogName Security -MaxEvents 100 |
-ForEach-Object {
-    [PSCustomObject]@{
-        source = "windows"
-        timestamp = $_.TimeCreated.ToString("o")
-        event_id = $_.Id
-        host = $_.MachineName
-        message = $_.Message
-    }
-} |
-ConvertTo-Json -Depth 5 |
-Out-File windows_events.json
+$env:NORMALIZER_SERVER="http://127.0.0.1:5000"
+$env:NORMALIZER_API_KEY="change-this-key"
 ```
 
-The resulting JSON file can then be passed to the normalizer.
+Run:
 
-```bash
-python app.py windows windows_events.json output/normalized.json
+```powershell
+python collector.py
 ```
 
-> **Note:** The initial PowerShell collector stores the event description in `message`. Future versions will extract structured Windows Event XML fields such as `TargetUserName`, `IpAddress`, `IpPort`, `ProcessName`, and `ProcessId`.
+The agent collects events from:
+
+```text
+Windows Security Event Log
+```
+
+and sends them to the central API.
 
 ---
 
-# Why JSON/XML Before `.evtx`?
+## Environment Configuration
 
-Windows Event Logs are commonly stored as `.evtx` files.
+The system supports environment-based configuration.
+
+Common variables:
 
 ```text
-C:\Windows\System32\winevt\Logs\Security.evtx
+NORMALIZER_SERVER
+NORMALIZER_API_KEY
+NORMALIZER_REQUEST_TIMEOUT
 ```
 
-`.evtx` is a binary event-log format rather than a simple text format.
-
-For the first version, the project uses structured event data:
+Linux-specific:
 
 ```text
-Windows Event
-      │
-      ▼
-PowerShell / Windows API
-      │
-      ▼
-Structured Event
-      │
-      ▼
-JSON
-      │
-      ▼
-Python Parser
-      │
-      ▼
+LINUX_LOG_FILE
+LINUX_POLL_INTERVAL
+LINUX_MONITORED_SERVICE
+LINUX_AGENT_NAME
+```
+
+Windows-specific:
+
+```text
+WINDOWS_LOG_NAME
+WINDOWS_POLL_INTERVAL
+WINDOWS_AGENT_NAME
+```
+
+---
+
+## Event Flow
+
+Example Linux event:
+
+```text
+SSH Failed Login
+      ↓
+Linux Agent
+      ↓
+HTTP POST /api/events
+      ↓
+Flask API
+      ↓
+Linux Parser
+      ↓
 Common Schema
+      ↓
+JSON Storage
 ```
 
-This keeps the initial project focused on **parsing and normalization**.
-
-Direct `.evtx` ingestion is planned as a future feature:
+Windows follows the same pipeline:
 
 ```text
-Security.evtx
-      │
-      ▼
-EVTX Parser
-      │
-      ▼
-Windows Event Parser
-      │
-      ▼
+Windows Security Event
+      ↓
+Windows Agent
+      ↓
+Flask API
+      ↓
+Windows Parser
+      ↓
 Common Schema
-      │
-      ▼
-Normalized JSON
+      ↓
+JSON Storage
 ```
 
 ---
 
-# Example: Cross-Platform Normalization
+## Current Status
 
-### Linux
+| Component                 | Status        |
+| ------------------------- | ------------- |
+| Linux real-time collector | ✅ Implemented |
+| Windows event collector   | ✅ Implemented |
+| Central Flask API         | ✅ Implemented |
+| API authentication        | ✅ Implemented |
+| Linux parser              | ✅ Implemented |
+| Windows parser            | ✅ Implemented |
+| Common event schema       | ✅ Implemented |
+| JSON storage              | ✅ Implemented |
+| Detection engine          | 🔄 Future     |
+| Database                  | 🔄 Future     |
+| Dashboard                 | 🔄 Future     |
+| Alerting                  | 🔄 Future     |
+| Threat intelligence       | 🔄 Future     |
+| MITRE ATT&CK mapping      | 🔄 Future     |
+| Event correlation         | 🔄 Future     |
+| Full SIEM functionality   | 🔄 Future     |
+
+---
+
+## Future Work
+
+The project is planned to evolve into a lightweight SIEM platform.
+
+### Detection & Correlation
+
+* Brute-force detection
+* Password spraying detection
+* Suspicious process detection
+* Privilege escalation detection
+* Multi-event correlation
+* Risk scoring
+
+### Storage & Analytics
+
+* SQLite/PostgreSQL
+* Elasticsearch/OpenSearch
+* Advanced event search
+* Historical analysis
+
+### Security Dashboard
+
+A web dashboard will provide:
+
+* Real-time events
+* Security alerts
+* Event filtering
+* Source IP analysis
+* User activity
+* Host monitoring
+* Risk visualization
+
+### Alerting & Threat Intelligence
+
+Planned integrations include:
+
+* Discord
+* Email
+* Webhooks
+* IOC reputation lookup
+* IP/domain enrichment
+* MITRE ATT&CK mapping
+
+### Reliability & Security
+
+Future improvements:
+
+* HTTPS/TLS
+* Secure agent registration
+* Event buffering and retry
+* Persistent Windows Event Record IDs
+* Agent heartbeat monitoring
+* Duplicate-event prevention
+* EVTX offline analysis
+
+---
+
+## Long-Term Goal
+
+The long-term goal is to transform the project from a **cross-platform log normalizer** into a lightweight security monitoring platform:
 
 ```text
-Failed password for admin from 10.10.10.25
-```
-
-### Windows
-
-```text
-Event ID: 4625
-User: administrator
-Source IP: 10.10.10.25
-```
-
-Both can be represented as:
-
-```json
-{
-    "event": {
-        "type": "authentication",
-        "action": "login",
-        "status": "failed"
-    },
-    "network": {
-        "src_ip": "10.10.10.25"
-    }
-}
-```
-
-This is the main purpose of the project.
-
-Instead of creating separate detection logic for every log format, future detection rules can work against the normalized schema.
-
----
-
-# Future Detection Engine
-
-The normalized data will eventually feed a detection engine.
-
-Example:
-
-```text
-Linux SSH Failed Login
-          │
-          │
-Windows 4625
-          │
-          ▼
-   Common Schema
-          │
-          ▼
- Authentication Detector
-          │
-          ▼
- Multiple Failed Attempts
-          │
-          ▼
-      Alert
-```
-
-Planned detections include:
-
-* SSH brute-force attempts
-* Windows failed-logon bursts
-* Account lockouts
-* Suspicious process creation
-* Privilege-related events
-* New account creation
-* Suspicious PowerShell execution
-* Repeated authentication failures
-* Cross-platform authentication attacks
-
----
-
-# Roadmap
-
-## Phase 1 — Schema
-
-* [x] Design common event schema
-* [x] Define event categories
-* [x] Define user fields
-* [x] Define network fields
-* [x] Define process fields
-* [x] Add Pydantic validation
-
-## Phase 2 — Linux Parser
-
-* [x] Parse SSH authentication
-* [x] Detect successful SSH login
-* [x] Detect failed SSH login
-* [ ] Add sudo events
-* [ ] Add user-management events
-
-## Phase 3 — Windows Parser
-
-* [x] Event ID `4624`
-* [x] Event ID `4625`
-* [x] Event ID `4634`
-* [x] Event ID `4648`
-* [x] Event ID `4672`
-* [x] Event ID `4688`
-* [x] Event ID `4720`
-* [x] Event ID `4726`
-* [x] Event ID `4740`
-* [ ] Extract structured Event XML fields
-
-## Phase 4 — Log Collection
-
-* [x] JSON input
-* [ ] Windows Event API
-* [ ] Real-time Linux log monitoring
-* [ ] Real-time Windows event monitoring
-* [ ] `.evtx` ingestion
-
-## Phase 5 — Detection
-
-* [ ] Brute-force detection
-* [ ] Authentication anomaly detection
-* [ ] Account-lockout detection
-* [ ] Suspicious process detection
-* [ ] Privilege escalation indicators
-* [ ] Alert generation
-
-## Phase 6 — Dashboard
-
-* [ ] Event statistics
-* [ ] Event timeline
-* [ ] Source IP analysis
-* [ ] Authentication monitoring
-* [ ] Alert dashboard
-* [ ] Search and filtering
-
----
-
-# Security Considerations
-
-This project is intended for **authorized defensive security monitoring and research**.
-
-Do not commit real production logs to a public repository.
-
-Logs may contain:
-
-* Usernames
-* IP addresses
-* Hostnames
-* Commands
-* Authentication information
-* Internal infrastructure information
-
-Use sanitized logs for demonstrations.
-
-Recommended `.gitignore`:
-
-```gitignore
-venv/
-__pycache__/
-*.pyc
-
-output/*
-*.evtx
-
-.env
+Log Collection
+      ↓
+Normalization
+      ↓
+Detection
+      ↓
+Correlation
+      ↓
+Risk Scoring
+      ↓
+Threat Intelligence
+      ↓
+Alerting
+      ↓
+Security Dashboard
 ```
 
 ---
 
-# Learning Outcomes
+## Technologies
 
-This project provides practical experience with:
-
-* Security log analysis
-* Linux authentication logs
-* Windows Security Events
-* Windows Event IDs
-* Log parsing
-* Regular expressions
-* JSON processing
-* Schema design
-* Data normalization
-* Pydantic
 * Python
+* Flask
+* Pydantic
+* Requests
+* Linux
+* Windows Event Log
+* REST API
+* JSON
 * PowerShell
-* SIEM architecture
-* Security detection engineering
+* Git
 
 ---
 
-# Future Architecture
+## Security Note
 
-The final goal is to evolve the project into a lightweight security monitoring platform:
+This project is intended for **security monitoring, learning, research, and authorized environments**. Production deployment should additionally use TLS, secure secret management, proper authentication, access controls, persistent storage, and event integrity protections.
 
-```text
-                 LOG COLLECTION
-                       │
-             ┌─────────┴─────────┐
-             │                   │
-             ▼                   ▼
-          Linux              Windows
-             │                   │
-             └─────────┬─────────┘
-                       ▼
-                PARSING LAYER
-                       │
-                       ▼
-                 NORMALIZATION
-                       │
-                       ▼
-                 COMMON SCHEMA
-                       │
-                       ▼
-                DETECTION ENGINE
-                       │
-                 ┌─────┴─────┐
-                 ▼           ▼
-               ALERTS      EVENTS
-                 │           │
-                 └─────┬─────┘
-                       ▼
-                   DASHBOARD
-```
+## License
 
----
-
-📜 License
-
-This project is intended for educational, research, and authorized defensive-security purposes.
+This project is intended for educational and security research purposes.
