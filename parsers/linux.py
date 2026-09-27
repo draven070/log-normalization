@@ -117,7 +117,7 @@ class LinuxAuthParser:
 
             message=raw_log,
 
-            raw_log=raw_log
+           
         )
 
     def build_timestamp(
