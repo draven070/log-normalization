@@ -1,0 +1,15 @@
+# Environment secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Generated logs and output
+output/*.json
+
+# IDE
+.vscode/
+.idea/

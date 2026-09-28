@@ -1,24 +1,26 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 
+# Project root directory
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-SERVER_HOST = os.getenv(
-    "SERVER_HOST",
-    "0.0.0.0"
-)
+# Load shared environment file
+ENV_FILE = PROJECT_ROOT / ".env"
+load_dotenv(ENV_FILE)
 
-SERVER_PORT = int(
-    os.getenv(
-        "SERVER_PORT",
-        "5000"
-    )
-)
+# Flask server configuration
+SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
+SERVER_PORT = int(os.getenv("SERVER_PORT", "5000"))
 
-API_KEY = os.getenv(
-    "NORMALIZER_API_KEY",
-    "change-this-key"
-)
+# API authentication
+API_KEY = os.getenv("NORMALIZER_API_KEY")
 
-OUTPUT_FILE = os.getenv(
+# Storage configuration
+OUTPUT_FILE = PROJECT_ROOT / os.getenv(
     "OUTPUT_FILE",
-    "../output/normalized_events.json"
+    "output/normalized_events.json"
 )
+
+if not API_KEY:
+    raise RuntimeError("NORMALIZER_API_KEY is missing from .env")

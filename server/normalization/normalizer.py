@@ -24,7 +24,6 @@ class LogNormalizer:
         Returns:
             NormalizedLog | None
         """
-
         if not self.linux_parser.can_parse(log):
             return None
 
@@ -40,26 +39,36 @@ class LogNormalizer:
         Returns:
             NormalizedLog
         """
-
         return self.windows_parser.parse(event)
 
     def normalize(self, source, data):
         """
         Generic normalization method.
 
-        Args:
-            source (str): 'linux' or 'windows'
-            data: Raw event data.
+        Supported Linux sources:
+            - linux
+            - systemd-journal
+            - /var/log/auth.log
+            - /var/log/secure
 
-        Returns:
-            NormalizedLog | None
+        Supported Windows source:
+            - windows
         """
 
-        source = source.lower()
+        source = source.lower().strip()
 
-        if source == "linux":
+        # Linux sources
+        linux_sources = {
+            "linux",
+            "systemd-journal",
+            "/var/log/auth.log",
+            "/var/log/secure",
+        }
+
+        if source in linux_sources:
             return self.normalize_linux(data)
 
+        # Windows source
         if source == "windows":
             return self.normalize_windows(data)
 

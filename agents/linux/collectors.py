@@ -1,108 +1,170 @@
-import os
 import time
 import requests
-from datetime import datetime
 
 from config import (
     SERVER_URL,
     API_KEY,
-    LOG_FILE,
-    POLL_INTERVAL,
-    MONITORED_SERVICE,
-    REQUEST_TIMEOUT,
     AGENT_NAME,
+    REQUEST_TIMEOUT,
+    POLL_INTERVAL,
+    ENABLE_JOURNAL,
+    ENABLE_AUTH_LOG,
+    AUTH_LOG_PATH,
+    SECURE_LOG_PATH,
 )
 
+from journal import JournalCollector
+from file_collector import FileCollector
 
-def send_event(message):
+
+# --------------------------------------------------
+# API
+# --------------------------------------------------
+
+HEADERS = {
+    "X-API-Key": API_KEY,
+    "Content-Type": "application/json",
+}
+
+
+def send_event(message, source):
+    """
+    Send raw Linux event to central server.
+    """
 
     payload = {
-        "source": "linux",
-        "agent_id": AGENT_NAME,
-        "timestamp": datetime.now().isoformat(),
-        "host": os.uname().nodename,
-        "message": message
+        "agent": AGENT_NAME,
+        "source": source,
+        "message": message,
     }
 
     try:
-
         response = requests.post(
             f"{SERVER_URL}/api/events",
             json=payload,
-            headers={
-                "X-API-Key": API_KEY
-            },
-            timeout=REQUEST_TIMEOUT
+            headers=HEADERS,
+            timeout=REQUEST_TIMEOUT,
         )
 
-        if response.status_code == 201:
-
-            print("[+] Event sent")
-
-        else:
-
+        if response.ok:
             print(
-                f"[!] Server returned "
-                f"{response.status_code}"
+                f"[SENT] {source}: {message}"
+            )
+        else:
+            print(
+                f"[SERVER ERROR] "
+                f"{response.status_code}: "
+                f"{response.text}"
             )
 
-    except requests.RequestException as error:
-
+    except requests.RequestException as exc:
         print(
-            f"[!] Connection error: {error}"
+            f"[CONNECTION ERROR] {exc}"
         )
 
 
-def follow_file(path):
+# --------------------------------------------------
+# Journal handler
+# --------------------------------------------------
 
-    print(
-        f"[*] Monitoring {path}"
+def handle_journal(message):
+    send_event(
+        message,
+        "systemd-journal"
     )
 
-    with open(
-        path,
-        "r",
-        encoding="utf-8",
-        errors="replace"
-    ) as file:
 
-        file.seek(
-            0,
-            os.SEEK_END
-        )
+# --------------------------------------------------
+# File handler
+# --------------------------------------------------
 
-        while True:
+def handle_file(message, path):
+    send_event(
+        message,
+        path
+    )
 
-            line = file.readline()
 
-            if not line:
-
-                time.sleep(POLL_INTERVAL)
-
-                continue
-
-            yield line.strip()
-
+# --------------------------------------------------
+# Main
+# --------------------------------------------------
 
 def main():
 
-    print(
-        f"[*] Agent: {AGENT_NAME}"
-    )
+    print("=" * 60)
+    print("Linux Security Log Collector")
+    print("=" * 60)
 
-    print(
-        f"[*] Monitoring: {LOG_FILE}"
-    )
+    print(f"Agent       : {AGENT_NAME}")
+    print(f"Server      : {SERVER_URL}")
+    print(f"Journal     : {ENABLE_JOURNAL}")
+    print(f"Auth log    : {ENABLE_AUTH_LOG}")
+    print("=" * 60)
 
-    for line in follow_file(LOG_FILE):
+    collectors = []
 
-        if MONITORED_SERVICE in line:
+    # ----------------------------------------------
+    # systemd journal
+    # ----------------------------------------------
 
-            print(
-                f"[EVENT] {line}"
+    if ENABLE_JOURNAL:
+
+        journal = JournalCollector(
+            handle_journal
+        )
+
+        journal.start()
+
+        collectors.append(journal)
+
+        print(
+            "[STARTED] systemd journal collector"
+        )
+
+    # ----------------------------------------------
+    # Traditional Linux logs
+    # ----------------------------------------------
+
+    if ENABLE_AUTH_LOG:
+
+        for path in [
+            AUTH_LOG_PATH,
+            SECURE_LOG_PATH,
+        ]:
+
+            collector = FileCollector(
+                path,
+                handle_file,
+                POLL_INTERVAL
             )
 
-            send_event(line)
+            if collector.start():
+                collectors.append(collector)
+
+    # ----------------------------------------------
+    # Keep running
+    # ----------------------------------------------
+
+    if not collectors:
+        print(
+            "[ERROR] No Linux log source available."
+        )
+
+        return
+
+    try:
+
+        while True:
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+
+        print("\nStopping collectors...")
+
+        for collector in collectors:
+            collector.stop()
+
+        print("Linux collector stopped.")
 
 
 if __name__ == "__main__":

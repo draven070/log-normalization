@@ -30,13 +30,11 @@ def health():
 
 @app.route("/api/events", methods=["POST"])
 def receive_event():
-
     provided_key = request.headers.get(
         "X-API-Key"
     )
 
     if provided_key != API_KEY:
-
         return jsonify({
             "error": "Unauthorized"
         }), 401
@@ -46,7 +44,6 @@ def receive_event():
     )
 
     if not data:
-
         return jsonify({
             "error": "Invalid JSON"
         }), 400
@@ -54,16 +51,21 @@ def receive_event():
     source = data.get("source")
 
     try:
+        linux_sources = {
+            "linux",
+            "systemd-journal",
+            "/var/log/auth.log",
+            "/var/log/secure",
+        }
 
         normalized = normalizer.normalize(
             source,
             data.get("message")
-            if source == "linux"
+            if source in linux_sources
             else data
         )
 
         if normalized is None:
-
             return jsonify({
                 "status": "ignored"
             }), 200
@@ -87,7 +89,6 @@ def receive_event():
         }), 201
 
     except Exception as error:
-
         print(
             f"[ERROR] {error}"
         )
