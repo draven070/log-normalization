@@ -1637,5 +1637,3 @@ https://bijaydahal.com.np
 # 39. License
 
 This project is intended for educational, research, and authorized security monitoring purposes.
-
-Add an appropriate open-source license to the repository if you intend to distribute the project publicly.
